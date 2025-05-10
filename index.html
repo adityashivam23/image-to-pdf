@@ -1,0 +1,152 @@
+
+<!DOCTYPE html>
+<html lang="hi">
+<head>
+  <meta charset="UTF-8">
+  <title>इमेज से PDF कन्वर्टर</title>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      background-color: #f4f4f4;
+      color: #333;
+      text-align: center;
+      padding: 30px;
+      transition: background-color 0.4s, color 0.4s;
+    }
+    h1 {
+      font-size: 32px;
+    }
+    .dark-mode {
+      background-color: #121212;
+      color: #f0f0f0;
+    }
+    input, select, button {
+      margin: 10px;
+      padding: 10px;
+      font-size: 16px;
+    }
+    #drop-area {
+      border: 2px dashed #aaa;
+      padding: 20px;
+      margin: 20px auto;
+      width: 80%;
+      background-color: #fff;
+    }
+    .dark-mode #drop-area {
+      background-color: #333;
+      border-color: #555;
+    }
+    #preview img {
+      max-height: 100px;
+      margin: 5px;
+      border: 1px solid #ccc;
+    }
+    .toggle-dark {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="toggle-dark">
+    <button onclick="toggleDarkMode()">🌙 / ☀️</button>
+  </div>
+
+  <h1>🖼️ इमेज से PDF कन्वर्टर</h1>
+
+  <div>
+    <label>पेज साइज चुनें:</label>
+    <select id="pageSize">
+      <option value="a4">A4</option>
+      <option value="letter">Letter</option>
+    </select>
+  </div>
+
+  <input type="file" id="imageInput" accept="image/*" multiple>
+  <div id="drop-area">या इमेज को यहां ड्रैग करें</div>
+  <button onclick="convertToPDF()">PDF बनाएँ</button>
+
+  <div id="preview"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script>
+    const preview = document.getElementById("preview");
+    const imageInput = document.getElementById("imageInput");
+    const dropArea = document.getElementById("drop-area");
+
+    imageInput.addEventListener("change", handleFiles);
+
+    dropArea.addEventListener("dragover", e => {
+      e.preventDefault();
+      dropArea.style.borderColor = "#000";
+    });
+
+    dropArea.addEventListener("dragleave", () => {
+      dropArea.style.borderColor = "#aaa";
+    });
+
+    dropArea.addEventListener("drop", e => {
+      e.preventDefault();
+      dropArea.style.borderColor = "#aaa";
+      imageInput.files = e.dataTransfer.files;
+      handleFiles();
+    });
+
+    function handleFiles() {
+      preview.innerHTML = '';
+      Array.from(imageInput.files).forEach(file => {
+        const img = document.createElement("img");
+        img.src = URL.createObjectURL(file);
+        preview.appendChild(img);
+      });
+    }
+
+    async function convertToPDF() {
+      const { jsPDF } = window.jspdf;
+      const size = document.getElementById("pageSize").value;
+      const pdf = new jsPDF({ format: size });
+      const files = imageInput.files;
+
+      if (files.length === 0) {
+        alert("कृपया पहले इमेज चुनें।");
+        return;
+      }
+
+      for (let i = 0; i < files.length; i++) {
+        const imgData = await toDataURL(files[i]);
+        const img = new Image();
+        img.src = imgData;
+
+        await new Promise(resolve => {
+          img.onload = () => {
+            const pageWidth = pdf.internal.pageSize.getWidth();
+            const pageHeight = (img.height * pageWidth) / img.width;
+
+            if (i > 0) pdf.addPage();
+            pdf.addImage(img, 'JPEG', 0, 0, pageWidth, pageHeight);
+            resolve();
+          };
+        });
+      }
+
+      pdf.save("converted.pdf");
+    }
+
+    function toDataURL(file) {
+      return new Promise(resolve => {
+        const reader = new FileReader();
+        reader.onload = e => resolve(e.target.result);
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function toggleDarkMode() {
+      document.body.classList.toggle("dark-mode");
+    }
+  </script>
+
+</body>
+</html>
